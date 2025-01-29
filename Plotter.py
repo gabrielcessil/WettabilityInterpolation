@@ -6,94 +6,105 @@ import os
 
 def Plot_Domain(values, filename, remove_value=[]):
     """
-    Plot a 3D domain from a 3D NumPy array and ghost cells with a specific value.
+    Plot a 3D domain from a 3D NumPy array, highlighting cells with value 0 as medium grey,
+    and optionally removing ghost cells with specific values.
 
     Parameters:
         values (np.ndarray): 3D NumPy array of cell values.
         filename (str): Name of the output file (with path, without extension).
-        remove_value (float/int): Value to mark as ghost cells.
+        remove_value (list): List of values to mark as ghost cells (optional).
     """
-    # Verificar se a pasta existe, caso contrário, criar
+    # Ensure the folder for the output file exists
     folder = os.path.dirname(filename)
     if folder and not os.path.exists(folder):
         os.makedirs(folder)
 
-    # Criar grid estruturado (ImageData)
+    # Create structured grid (ImageData)
     grid = pv.ImageData()
-    grid.dimensions = np.array(values.shape) + 1  # Dimensões como pontos
-    grid.origin = (0, 0, 0)  # Origem da grade
-    grid.spacing = (1, 1, 1)  # Espaçamento uniforme
+    grid.dimensions = np.array(values.shape) + 1  # Dimensions as points
+    grid.origin = (0, 0, 0)  # Origin of the grid
+    grid.spacing = (1, 1, 1)  # Uniform spacing
 
-    # Atribuir valores aos dados das células
-    grid.cell_data["values"] = values.flatten(order="F")  # Nome do atributo: "values"
+    # Assign cell values
+    grid.cell_data["values"] = values.flatten(order="F")  # Attribute name: "values"
 
-    # Remove celulas indesejadas no plot
+    # Remove unwanted cells from the plot
     mesh = grid.cast_to_unstructured_grid()
     if remove_value:
         for removed_value in remove_value:
             ghosts = np.argwhere(mesh["values"] == removed_value)
             mesh.remove_cells(ghosts.flatten(), inplace=True)
 
-    # Plot the grid with ghosted cells hidden
+    # Separate the cells with value 0 for grey coloring
+    solid_cells = mesh.extract_cells(np.where(mesh["values"] == 0)[0]) # 
+    other_cells = mesh.extract_cells(np.where(mesh["values"] != 0)[0]) 
+
+    # Configure the plotter
     plotter = pv.Plotter(window_size=[1920, 1080], off_screen=True)  # Full HD resolution
 
-    # Adiciona celulas
+    # Add cells with non-zero values to the plot
     plotter.add_mesh(
-        mesh,
-        cmap="viridis",
+        other_cells,
+        cmap="YlOrRd",
         show_edges=False,
         lighting=True,
         smooth_shading=True,
         split_sharp_edges=True,
         scalar_bar_args={
-            "title": "Range",          # Title of the color bar
-            "vertical": True,          # Make the color bar vertical
+            "title": "Range",  # Title of the color bar
+            "vertical": True,  # Make the color bar vertical
             "title_font_size": 20,
             "label_font_size": 16,
-            "position_x": 0.85,        # Position of the color bar (X-axis)
-            "position_y": 0.05,        # Position of the color bar (Y-axis)
-            "height": 0.9,             # Height of the color bar
-            "width": 0.05              # Width of the color bar
+            "position_x": 0.85,  # Position of the color bar (X-axis)
+            "position_y": 0.05,  # Position of the color bar (Y-axis)
+            "height": 0.9,  # Height of the color bar
+            "width": 0.05,  # Width of the color bar
         }
     )
 
-    # Adiciona linhas nas arestas
+    if solid_cells.n_cells > 0:  # Check if the mesh is not empty
+        # Add cells with value 0 as grey
+        plotter.add_mesh(solid_cells, color="cornflowerblue", show_scalar_bar=False)
+
+    # Add edge highlighting
     edges = mesh.extract_feature_edges(
         boundary_edges=False,
         non_manifold_edges=False,
         feature_angle=30,
         manifold_edges=False,
     )
-    plotter.add_mesh(edges,
-                     color='k',
-                     line_width=5,
-                     show_scalar_bar=False)
+    plotter.add_mesh(edges, color='k', line_width=5, show_scalar_bar=False)
 
-    # Adiciona indicador de direcao
+    # Add axis indicators
     plotter.add_axes(
         line_width=5,
         cone_radius=0.6,
         shaft_length=0.9,
         tip_length=0.2,
         ambient=0.5,
-        label_size=(0.25, 0.15))
+        label_size=(0.25, 0.15)
+    )
 
-    # Adiciona limites do grafico
+    # Show grid bounds with labels
     plotter.show_bounds(
         grid='back',
         location='outer',
         ticks='both',
-        n_xlabels=2,
-        n_ylabels=2,
-        n_zlabels=2,
+        show_xlabels=True,
+        show_ylabels=True,
+        show_zlabels=True,
+        n_xlabels=4,
+        n_ylabels=4,
+        n_zlabels=4,
+        font_size=15,
         xtitle='x',
         ytitle='y',
-        ztitle='z')
+        ztitle='z'
+    )
 
-    # Cria grafico
+    # Save the visualization as an image
     plotter.screenshot(filename + ".png")  # Save as screenshot
     plotter.show()
-
 
 def Plot_Sliced_Planes(array_3d, x_offset=0., y_offset=0., z_offset=0., file_name="3D_planes"):
     # Verificar se a pasta existe, caso contrário, criar

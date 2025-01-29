@@ -206,6 +206,9 @@ def PlotPath_fromSources(volume, all_paths, target, fill_value=10):
     for point in path:
         i,j,k = point
         final_volume[i,j,k] = fill_value
+    
+    final_volume[path[0][0],path[0][1],path[0][2]] = fill_value*20
+    final_volume[target[0],target[1],target[2]] = fill_value*10
         
     pl.Plot_Domain(final_volume, "TESTE", remove_value=[1]) 
     

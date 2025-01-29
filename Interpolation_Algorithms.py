@@ -6,7 +6,9 @@ from sklearn.neighbors import NearestNeighbors
 import os
 
 def interpolate_solid(volume, fluid_default_value=1, file_name=""):
-
+    print("-Full Volume (with Surface), sample cells: ", np.sum((volume != 0) & (volume != 1)))
+    print("-Full Volume (with Surface), fluid cells: ", np.sum((volume == 1)))
+    print("-Full Volume (with Surface), solid cells: ", np.sum((volume == 0)))
     volume_shape = volume.shape
 
     # Coleta o sub domínio em analise
@@ -47,7 +49,6 @@ def interpolate_solid(volume, fluid_default_value=1, file_name=""):
 
 
 def interpolate_solid_connections(volume, fluid_default=1, file_name="", make_plot=True):
-    print("  Full Volume, sample cells: ", np.sum((volume != 0) & (volume != 1)))
     # Separate full solid into sub-solid with connected cells
     sub_arrays, connected_labels, labels = Separate_NonFluid_Connections(volume, fluid_default)
 
@@ -55,11 +56,11 @@ def interpolate_solid_connections(volume, fluid_default=1, file_name="", make_pl
     volume_krig = volume.copy()
     volume_nn = volume.copy()
     
-    print("  Array diveded into ",len(sub_arrays), " sub arrays. ")
+    print("---Array diveded into ",len(sub_arrays), " sub arrays. ")
         
     for conn_label, sub_domain in zip(labels, sub_arrays):
         pl.Plot_Domain(sub_domain, "EXCLUIR")
-        print("  Group ", conn_label, " with shape ",sub_domain.shape, ", Sample cells: ",np.sum((sub_domain != 0) & (sub_domain != 1)))
+        print("---Group ", conn_label, " with shape ",sub_domain.shape, ", Sample cells: ",np.sum((sub_domain != 0) & (sub_domain != 1)))
         
         # If no samples are present on the solid group: keep original 
         if np.sum((sub_domain != 0) & (sub_domain != 1)) == 0: 
@@ -86,10 +87,10 @@ def interpolate_solid_connections(volume, fluid_default=1, file_name="", make_pl
 
 
 def interpolate_solid_connection_surfaces(volume, fluid_default=1, file_name=""):
-    print("  Full Volume (with Surface), sample cells: ", np.sum((volume != 0) & (volume != 1)))
+    print("-Full Volume (with Surface), sample cells: ", np.sum((volume != 0) & (volume != 1)))
     volume_surface = Remove_Internal_Solid(volume)
     
-    print("  Full Volume (no Surface), sample cells: ", np.sum((volume_surface != 0) & (volume_surface != 1)))
+    print("-Full Volume (no Surface), sample cells: ", np.sum((volume_surface != 0) & (volume_surface != 1)))
     volume_krig, volume_nn = interpolate_solid_connections(volume_surface, fluid_default=fluid_default) 
     
     
@@ -117,7 +118,7 @@ def limit_interpolation_to_solid(volume, interpolated_domain, fluid_default_valu
 
 def Apply_Kriging(df, n_points=5, tested_methods=["linear", "power", "gaussian", "spherical", "exponential", "hole-effect"],
                   x_lim=(0, 250), y_lim=(0, 250), z_lim=(0, 250)):
-    print("    Applying Kriging: ")
+    print("-Applying Kriging: ")
     
     # Coleta o sub domínio em analise
     x_min, x_max = x_lim
@@ -146,11 +147,11 @@ def Apply_Kriging(df, n_points=5, tested_methods=["linear", "power", "gaussian",
     # Se todas as medicoes sao iguais, a estimativa para todo o dominio sera esse valor
     # Esse caso eh importante para subdominios pequenos (com poucas medidas).
     if np.all(angle == angle[0]):
-        print(f"    All samples provided have the exact same value ({angle[0]}), kriging was not necessary. The single value was propagated.")
+        print(f"--All samples provided have the exact same value ({angle[0]}), kriging was not necessary. The single value was propagated.")
         # Criar o array 3D preenchido com angle[0]
         return np.full((x_dim, y_dim, z_dim), angle[0])
     elif angle.size <= 2:
-        print("    Only 2 samples were provided, kriging is not applicable. Mean values was propagated.")
+        print("--Only 2 samples were provided, kriging is not applicable. Mean values was propagated.")
         # Criar o array 3D preenchido com angle[0]
         return np.full((x_dim, y_dim, z_dim), (angle[0]+angle[1])/2) 
     else:
@@ -162,12 +163,11 @@ def Apply_Kriging(df, n_points=5, tested_methods=["linear", "power", "gaussian",
         best_prediction = None
 
         for method in tested_methods:
-            print("     Universal Kriging method selected")
+            print("--Universal Kriging, method: ", method)
             ok3d = UniversalKriging3D(x, y, z, angle, variogram_model=method, enable_plotting=True)
 
             # A matriz de kriging de cada ponto do grid tem N = (n_samples+1)**2 elementos,
             # O método vetorizado utiliza a inversao da matriz, demandando 32*N**2 bytes.
-
             # O metodo loop evita a inversao de matriz, executando cada ponto do grid em loop
 
             predictions_3D, residual_variances = ok3d.execute(
@@ -181,10 +181,9 @@ def Apply_Kriging(df, n_points=5, tested_methods=["linear", "power", "gaussian",
             
             statistical_maximum_residual = np.mean(residual_variances)+2*np.std(residual_variances)
             if  statistical_maximum_residual < best_residual:
-                print("     Method: "+method+" found a new solution: maximum residual: ", round(statistical_maximum_residual,2))
+                print("New best solution found: statistical maximum residual: ", round(statistical_maximum_residual,2))
                 best_prediction = predictions_3D
             
-
         return best_prediction
 
 
@@ -211,7 +210,7 @@ def Filtra_KNN(df_medidas, K=5):
 
 
 def Apply_NearestNeighbor(sub_df, n_neighbors=1, x_lim=(0, 250), y_lim=(0, 250), z_lim=(0, 250)):
-    print("    Applying Nearest Neighbor:")
+    print("-Applying Nearest Neighbor:")
     # Nearest Neighbor model
     x = sub_df['x'].values
     y = sub_df['y'].values
